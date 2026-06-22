@@ -1,0 +1,25 @@
+{
+  "healthcheck_policy": {
+    "healthcheck_every_minutes": 5
+  },
+
+  "save_inc_policy": {
+    "save_inc_every_weeks": 1
+  },
+
+  "save_full_policy": {
+    "save_full_every_months": 1
+  },
+
+  "scheduling": {
+    "healthcheck_cron": "*/5 * * * *",
+    "save_inc_cron": "0 1 * * 1",
+    "save_full_cron": "0 0 1 * *"
+  },
+
+  "error_handling": {
+    "max_retries": 3,
+    "retry_delay_seconds": 60,
+    "exponential_backoff": true
+  }
+}
