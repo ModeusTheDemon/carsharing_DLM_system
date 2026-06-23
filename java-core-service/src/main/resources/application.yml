@@ -11,10 +11,7 @@ spring:
     show-sql: true # Будет выводить SQL-запросы Java в консоль для наглядности
 
   flyway:
-    enabled: true
-    baseline-on-migrate: true # Полезно, если база уже частично существовала
-    repair-on-migrate: true # Исправить контрольные суммы при несоответствии
-    validate-on-migrate: false # Отключить валидацию контрольных сумм
+    enabled: false
 
   # Настройки Actuator для мониторинга и health checks
   management:
