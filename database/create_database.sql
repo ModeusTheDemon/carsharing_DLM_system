@@ -2,8 +2,8 @@
 -- ПОЛНОЕ ПЕРЕСОЗДАНИЕ БАЗЫ ДАННЫХ CARSHARING
 -- ==========================================
 -- Удаляем старую базу и создаем новую
-DROP DATABASE IF EXISTS carsharing_db WITH (FORCE);
-CREATE DATABASE carsharing_db;
+-- DROP DATABASE IF EXISTS carsharing_db WITH (FORCE);
+-- CREATE DATABASE carsharing_db;
 
 -- ==========================================
 -- СХЕМА MAIN (для Java-сервиса)
@@ -20,6 +20,7 @@ CREATE TABLE main.users (
     password_hash VARCHAR(255) NOT NULL,
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP,
+    terms_accepted BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

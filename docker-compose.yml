@@ -1,7 +1,9 @@
+version: '3.8'
+
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (Версия 17 с поддержкой нативных инкрементов)
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: carsharing-postgres
     ports:
       - "5432:5432"
@@ -9,15 +11,17 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=1092387456XxXYyYZzZ.,..,..,.
       - POSTGRES_DB=carsharing_db
+    # Включаем summarize_wal для инкрементов и max_wal_senders для pg_basebackup
+    command: postgres -c summarize_wal=on -c max_wal_senders=10 -c wal_level=replica
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-v17:/var/lib/postgresql/data
       - ./database:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d carsharing_db"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 60s
     restart: always
     logging:
       driver: json-file
@@ -25,15 +29,15 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Java Core Service
+  # Java Core Service (Бизнес-логика на Spring Boot)
   java-core-service:
     build:
       context: ./java-core-service
-      dockerfile: Dockerfile
+      dockerfile: core.Dockerfile
     container_name: carsharing-java-core
     ports:
       - "8080:8080"
-      - "8081:8081"  # Actuator endpoints
+      - "8081:8081"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/carsharing_db
       - SPRING_DATASOURCE_USERNAME=postgres
@@ -56,7 +60,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Redis (for Celery)
+  # Redis (Очередь задач Celery)
   dlm-redis:
     image: redis:7-alpine
     container_name: carsharing-dlm-redis
@@ -74,16 +78,18 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Python DLM Worker (Celery)
+  # ========================================================
+  # СЕРВИСЫ PYTHON DLM WORKER (Старый сервис бизнес-задач)
+  # ========================================================
   celery-worker:
     build:
-      context: ./python-dlm-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./python-dlm-worker/DLM.Dockerfile
     container_name: carsharing-celery-worker
     command: celery -A main.app worker --loglevel=info
     environment:
       - REDIS_URL=redis://dlm-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg2://postgres:1092387456XxXYyYZzZ.,..,..,.@postgres:5432/carsharing_db
+      - DATABASE_URL=postgresql+psycopg://postgres:1092387456XxXYyYZzZ.,..,..,.@postgres:5432/carsharing_db
     depends_on:
       - dlm-redis
       - java-core-service
@@ -94,17 +100,67 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Python DLM Worker (Celery Beat - scheduler)
   celery-beat:
     build:
-      context: ./python-dlm-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./python-dlm-worker/DLM.Dockerfile
     container_name: carsharing-celery-beat
     command: celery -A main.app beat --loglevel=info
     environment:
       - REDIS_URL=redis://dlm-redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://postgres:1092387456XxXYyYZzZ.,..,..,.@postgres:5432/carsharing_db
     depends_on:
       - dlm-redis
+      - postgres
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================================
+  # НОВЫЕ СЕРВИСЫ: PYTHON BACKUP SYSTEM (Автономная система бэкапов)
+  # ========================================================
+  python-backup-worker:
+    build:
+      context: .
+      dockerfile: ./python-backup-system/backup.Dockerfile
+    container_name: python-backup-system-worker
+    command: celery -A main worker --loglevel=info -Q backup_tasks
+    environment:
+      - REDIS_URL=redis://dlm-redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://postgres:1092387456XxXYyYZzZ.,..,..,.@postgres:5432/carsharing_db
+      # Передаем список разрешенных путей для скрипта поиска дисков
+      - ALLOWED_BACKUP_PATHS=/app/db_physical_full_backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dlm-redis:
+        condition: service_healthy
+    volumes:
+      # Проброс Docker сокета для аварийного рестарта базы через джобу checker
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Изолированная папка под бэкапы (доступ к postgres-data-v17 полностью УДАЛЕН)
+      - postgres-backups:/app/db_physical_full_backups
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  python-backup-beat:
+    build:
+      context: .
+      dockerfile: ./python-backup-system/backup.Dockerfile
+    container_name: python-backup-system-beat
+    command: celery -A main beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://dlm-redis:6379/0
+    depends_on:
+      - dlm-redis
+      - python-backup-worker
     restart: always
     logging:
       driver: json-file
@@ -113,4 +169,5 @@ services:
         max-file: "3"
 
 volumes:
-  postgres-data:
+  postgres-data-v17:
+  postgres-backups:

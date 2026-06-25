@@ -17,7 +17,8 @@ app.conf.update(
     enable_utc=True,
     task_serializer="json",
     accept_content=["json"],
-    result_serializer="json"
+    result_serializer="json",
+    task_default_queue = "DLM_tasks"
 )
 
 # Обертываем наши функции в задачи Celery

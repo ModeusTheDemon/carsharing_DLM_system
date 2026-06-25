@@ -26,6 +26,7 @@ def run_archiver():
 
     try:
         with get_db() as db:
+            # Step 1: Find rides to archive (rides that have ended before threshold)
             rides_to_archive = db.query(MainRide).filter(
                 MainRide.end_time <= ride_threshold
             ).all()
@@ -57,9 +58,16 @@ def run_archiver():
                 db.flush()
                 logger.info(f"Successfully archived {len(archive_ride_records)} ride records.")
 
+                db.query(MainTelemetry).filter(MainTelemetry.ride_id.in_(ride_ids_to_delete)).delete(synchronize_session=False)
+                logger.info(f"Removed telemetry records for {len(ride_ids_to_delete)} archived rides.")
+
+                db.query(MainPayment).filter(MainPayment.ride_id.in_(ride_ids_to_delete)).delete(synchronize_session=False)
+                logger.info(f"Removed payment records for {len(ride_ids_to_delete)} archived rides.")
+
                 db.query(MainRide).filter(MainRide.id.in_(ride_ids_to_delete)).delete(synchronize_session=False)
                 logger.info(f"Removed {len(ride_ids_to_delete)} archived rides from main schema.")
 
+            # Step 2: Find and archive payments that are old enough
             payments_to_archive = db.query(MainPayment).filter(
                 MainPayment.created_at <= payment_threshold
             ).all()

@@ -25,6 +25,7 @@ class MainUser(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_deleted: Mapped[bool] = mapped_column(default=False)
     deleted_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(timezone=True))
+    terms_accepted: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -131,8 +132,8 @@ class ArchivePayment(Base):
     __table_args__ = {"schema": "archive"}
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    ride_id: Mapped[str] = mapped_column(UUID(as_uuid=True), nullable=False)
-    user_id: Mapped[str] = mapped_column(UUID(as_uuid=True), nullable=False)
+    ride_id: Mapped[int] = mapped_column(Numeric, nullable=False)
+    user_id: Mapped[int] = mapped_column(Numeric, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)

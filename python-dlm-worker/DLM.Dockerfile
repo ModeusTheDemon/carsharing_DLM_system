@@ -1,4 +1,4 @@
-# Dockerfile
+# Dockerfile (внутри папки python-dlm-worker)
 FROM python:3.12-slim
 
 # Устанавливаем рабочую директорию внутри контейнера
@@ -8,9 +8,10 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Копируем и устанавливаем зависимости Python
-COPY requirements.txt .
+# Копируем requirements.txt из корня проекта
+COPY ./requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Копируем код именно DLM-воркера внутрь папки /app контейнера
+COPY ./python-dlm-worker .
