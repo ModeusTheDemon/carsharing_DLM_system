@@ -1,3 +1,5 @@
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ride_id UUID NOT NULL,
 -- ==========================================
 -- Миграция данных из схемы public в схему main
 -- ==========================================
